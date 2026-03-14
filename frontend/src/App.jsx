@@ -51,7 +51,15 @@ export default function App() {
     if (!text.trim()) return;
 
     const bye = text.toLowerCase().trim();
-    const byePhrases = ['merci', "c'est bon", 'a plus', 'au revoir', 'non', 'non merci', 'ca ira', 'ça ira', 'pas pour le moment', 'rien', "c'est tout", 'stop', "arrete d'ecouter", "arrête d'écouter", 'arrete', 'arrête', 'tais-toi', 'tais toi', 'silence', 'pause', 'en veille', 'mets-toi en veille'];
+    const byePhrases = [
+      // French
+      'merci', "c'est bon", 'a plus', 'au revoir', 'non', 'non merci', 'ca ira', 'ça ira',
+      'pas pour le moment', 'rien', "c'est tout", 'stop', "arrete d'ecouter", "arrête d'écouter",
+      'arrete', 'arrête', 'tais-toi', 'tais toi', 'silence', 'pause', 'en veille', 'mets-toi en veille',
+      // English
+      'thank you', 'thanks', 'no', 'no thanks', 'goodbye', 'bye', "that's all", "i'm good",
+      'stop listening', 'shut up', 'go to sleep', 'stand by',
+    ];
     if (byePhrases.some(p => bye.includes(p))) {
       setMessages(prev => [...prev, { role: 'user', text }]);
       const farewells = [

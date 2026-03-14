@@ -30,7 +30,7 @@ export default function useSpeechRecognition({ enabled, onResult, onTimeout, tim
     setTranscript('');
 
     const recognition = new SpeechRecognition();
-    recognition.lang = 'fr-FR';
+    recognition.lang = '';  // Auto-detect language
     recognition.continuous = false;
     recognition.interimResults = true;
 

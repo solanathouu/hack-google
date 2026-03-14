@@ -19,7 +19,7 @@ export default function useWakeWord({ enabled, onDetected }) {
     if (!SpeechRecognition || !enabledRef.current || isRunningRef.current) return;
 
     const recognition = new SpeechRecognition();
-    recognition.lang = 'fr-FR';
+    recognition.lang = '';  // Auto-detect language
     recognition.continuous = true;
     recognition.interimResults = true;
 
