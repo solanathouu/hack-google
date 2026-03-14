@@ -1,14 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 export default function BriefPanel({ briefText }) {
   const [displayedText, setDisplayedText] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const audioRef = useRef(null);
 
   useEffect(() => {
     if (!briefText) {
       setDisplayedText('');
       return;
     }
+    // Typewriter effect
     setDisplayedText('');
     let i = 0;
     const interval = setInterval(() => {
@@ -19,22 +24,73 @@ export default function BriefPanel({ briefText }) {
         clearInterval(interval);
       }
     }, 12);
+
+    // Auto-launch TTS in parallel
+    (async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/tts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: briefText }),
+        });
+        if (!res.ok) throw new Error('TTS failed');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.onended = () => {
+          setIsPlaying(false);
+          URL.revokeObjectURL(url);
+        };
+        setIsPlaying(true);
+        await audio.play();
+      } catch (err) {
+        console.error('TTS auto-play error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+
     return () => clearInterval(interval);
   }, [briefText]);
 
-  const handleSpeak = () => {
+  const handleSpeak = async () => {
     if (isPlaying) {
-      speechSynthesis.cancel();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
       setIsPlaying(false);
       return;
     }
-    const utterance = new SpeechSynthesisUtterance(briefText);
-    utterance.lang = 'fr-FR';
-    utterance.rate = 1.1;
-    utterance.pitch = 0.9;
-    utterance.onend = () => setIsPlaying(false);
-    speechSynthesis.speak(utterance);
-    setIsPlaying(true);
+
+    setIsLoading(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: briefText }),
+      });
+      if (!res.ok) throw new Error('TTS failed');
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setIsPlaying(false);
+        URL.revokeObjectURL(url);
+      };
+
+      setIsPlaying(true);
+      await audio.play();
+    } catch (err) {
+      console.error('TTS error:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!briefText) {
@@ -59,6 +115,7 @@ export default function BriefPanel({ briefText }) {
         </h4>
         <button
           onClick={handleSpeak}
+          disabled={isLoading}
           style={{
             background: 'none',
             border: '1px solid var(--green)',
@@ -66,11 +123,12 @@ export default function BriefPanel({ briefText }) {
             padding: '6px 16px',
             fontFamily: 'inherit',
             fontSize: '12px',
-            cursor: 'pointer',
+            cursor: isLoading ? 'wait' : 'pointer',
             transition: 'all 0.2s',
+            opacity: isLoading ? 0.6 : 1,
           }}
         >
-          {isPlaying ? '\u23F9 Stop' : '\uD83D\uDD0A Play'}
+          {isLoading ? '\u23F3 Chargement...' : isPlaying ? '\u23F9 Stop' : '\uD83D\uDD0A Play'}
         </button>
       </div>
       <div style={{

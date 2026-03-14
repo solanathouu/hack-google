@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import Header from './components/Header';
 import ProjectCard from './components/ProjectCard';
-import ToolFeed from './components/ToolFeed';
+
 import BriefPanel from './components/BriefPanel';
+import VoiceControl from './components/VoiceControl';
 import useOperatorSSE from './hooks/useOperatorSSE';
 
 const PROJECTS = [
@@ -12,20 +13,26 @@ const PROJECTS = [
 ];
 
 export default function App() {
-  const { toolCalls, projectStatuses, briefText, isScanning, startScan } = useOperatorSSE();
+  const {
+    toolCalls,
+    projectStatuses,
+    briefText,
+    isScanning,
+    startScan,
+    chatMessages,
+    addChatMessage,
+    scanProgress,
+    scanPhase,
+  } = useOperatorSSE();
 
-  // Auto-scan in demo mode (?demo=true)
+  // Auto-scan on page load
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('demo') === 'true') {
-      const timer = setTimeout(() => startScan(), 2000);
-      return () => clearTimeout(timer);
-    }
+    startScan();
   }, [startScan]);
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      <Header onScan={startScan} isScanning={isScanning} />
+      <Header scanProgress={scanProgress} scanPhase={scanPhase} />
 
       <div style={{
         display: 'flex',
@@ -46,8 +53,8 @@ export default function App() {
       </div>
 
       <div style={{ padding: '0 32px 32px' }}>
-        <ToolFeed toolCalls={toolCalls} />
         <BriefPanel briefText={briefText} />
+        <VoiceControl onReply={addChatMessage} chatMessages={chatMessages} visible={!!briefText} />
       </div>
     </div>
   );

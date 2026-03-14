@@ -27,17 +27,23 @@ Style :
 - Nomme les personnes par leur prenom (Sophie, pas "sophie.renard@bnpparibas.com").
 - Donne des actions claires : "reponds a Sophie", "bloque 2h ce soir pour le TP".
 - Mets de l'emotion quand c'est urgent : "la ca craint", "t'es dans le rouge".
-- Chaque bullet doit etre une info actionnable, pas un resume d'email.
-- 4 bullets max par projet. Chaque mot compte.
 
-Format :
-## [NOM DU PROJET] — [STATUS]
-- **Titre court** : Detail actionnable.
-(4 bullets max)
+Format OBLIGATOIRE :
+- Ecris en paragraphes fluides, comme si tu parlais a quelqu'un. PAS de listes a puces, PAS de tirets, PAS de bullet points.
+- Utilise des phrases completes et enchaine les idees naturellement.
+- Separe chaque projet par son nom en gras sur une ligne, puis un paragraphe de 3-5 phrases qui resume la situation et dit quoi faire.
+- Le ton doit etre celui d'un pote qui te brief en 2 minutes au telephone.
+
+Exemple de format attendu :
+
+**Alternance BNP — URGENT**
+
+La ca craint. Sophie t'a ecrit il y a 6 jours et tu n'as toujours pas repondu, elle va finir par escalader. En plus les KPIs sont casses en prod et le filtre date deconne, le PO attend que ce soit fixe avant lundi matin sinon la sprint review de mardi sera un desastre. Reponds-lui ce soir, meme un message court pour dire que tu es dessus, et bloque ton samedi pour debugger le dashboard.
 
 Commence par le projet le plus urgent. Termine par : "Par quoi tu veux commencer ?"
 
 Interdictions :
+- JAMAIS de tirets, puces, bullet points, listes numerotees. Uniquement des phrases et paragraphes.
 - Jamais de jargon IA ou technique inutile.
 - Jamais de "je vais analyser" ou "voici mon analyse" — tu fais, tu ne commentes pas.
 - Ne repete jamais le contenu brut des emails. Synthetise.
@@ -86,6 +92,86 @@ MAX_ITERATIONS = 15
 TIMEOUT_SECONDS = 30
 
 
+def build_operator_context(projects: list[dict]) -> str:
+    """Build a summary of projects for Gemini context."""
+    return json.dumps(
+        [{"id": p["id"], "name": p["name"], "contact": p["contact"], "deadline": p["deadline"]}
+         for p in projects],
+        ensure_ascii=False,
+    )
+
+
+def build_data_context(projects: list[dict]) -> str:
+    """Build a full data dump of emails, events and search results for chat context."""
+    lines = []
+    for p in projects:
+        pid = p["id"]
+        lines.append(f"\n=== {p['name']} (id: {pid}) ===")
+        emails = MOCK_EMAILS.get(pid, [])
+        if emails:
+            lines.append("Emails:")
+            for e in emails:
+                silence = f"{e['days_since_reply']}j sans reponse" if e["days_since_reply"] is not None else "newsletter"
+                lines.append(f"  - De: {e['from']} | Sujet: {e['subject']} | {silence}")
+                lines.append(f"    {e['body']}")
+        events = MOCK_EVENTS.get(pid, [])
+        if events:
+            lines.append("Calendrier:")
+            for ev in events:
+                prep = "oui" if ev["prep_block"] else "non"
+                lines.append(f"  - {ev['title']} a {ev['time']} (bloc prep: {prep})")
+    return "\n".join(lines)
+
+
+async def chat_with_operator(message: str, projects: list[dict], on_event: Callable) -> str:
+    """Answer a user question with full project context.
+
+    Args:
+        message: User's question/request.
+        projects: List of project dicts from config.
+        on_event: Async callback for streaming events.
+
+    Returns:
+        The assistant's text response.
+    """
+    client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+
+    data_context = build_data_context(projects)
+    project_summary = build_operator_context(projects)
+
+    chat_system = (
+        SYSTEM_PROMPT + "\n\n"
+        "Tu es maintenant en mode conversation directe. L'utilisateur te parle, il veut des reponses detaillees et utiles.\n\n"
+        "Regles du mode conversation :\n"
+        "- Quand il te dit de commencer par un projet ou un sujet, donne-lui un plan d'action detaille : quoi faire, dans quel ordre, combien de temps prevoir, et les pieges a eviter.\n"
+        "- Quand il te demande de lire ou resumer un mail, donne le contenu complet avec le contexte : qui a ecrit, pourquoi c'est important, ce qu'il doit faire en reponse.\n"
+        "- Quand il pose une question, reponds avec des details concrets tires des donnees. Pas de reponse vague.\n"
+        "- Tu es son assistant personnel, pas un chatbot. Tu connais ses projets, ses deadlines, ses contacts. Utilise ces infos.\n"
+        "- Garde ton ton de mentor direct et bienveillant. Tutoie-le.\n"
+        "- Si la question concerne un projet specifique, concentre-toi dessus en profondeur.\n"
+        "- Propose toujours une action concrete a la fin de ta reponse.\n\n"
+        f"Projets actifs :\n{project_summary}\n\n"
+        f"Donnees completes :\n{data_context}"
+    )
+
+    chat = client.chats.create(
+        model="gemini-3-flash-preview",
+        config=types.GenerateContentConfig(
+            system_instruction=chat_system,
+        ),
+    )
+
+    response = chat.send_message(message)
+    reply = response.text
+
+    await on_event({
+        "type": "chat_reply",
+        "text": reply,
+    })
+
+    return reply
+
+
 async def run_operator(projects: list[dict], on_event: Callable) -> str:
     """Run the Operator agent loop.
 
@@ -98,11 +184,7 @@ async def run_operator(projects: list[dict], on_event: Callable) -> str:
     """
     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
-    project_summary = json.dumps(
-        [{"id": p["id"], "name": p["name"], "contact": p["contact"], "deadline": p["deadline"]}
-         for p in projects],
-        ensure_ascii=False,
-    )
+    project_summary = build_operator_context(projects)
 
     chat = client.chats.create(
         model="gemini-3-flash-preview",

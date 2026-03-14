@@ -6,9 +6,13 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
+from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
-from agent import run_operator
+from agent import chat_with_operator, run_operator
+from mock_data import MOCK_EMAILS, MOCK_EVENTS, MOCK_SEARCH
+from tts import generate_speech
 from urgency import load_model
 
 load_dotenv()
@@ -69,6 +73,61 @@ async def run():
         await task
 
     return EventSourceResponse(generator())
+
+
+class TTSRequest(BaseModel):
+    text: str
+
+
+class ChatRequest(BaseModel):
+    message: str
+
+
+@app.post("/api/tts")
+async def tts(req: TTSRequest):
+    audio_bytes = generate_speech(req.text)
+    return Response(content=audio_bytes, media_type="audio/wav")
+
+
+@app.post("/api/chat")
+async def chat(req: ChatRequest):
+    config = load_config()
+    queue = asyncio.Queue()
+
+    async def on_event(event: dict):
+        await queue.put(event)
+
+    async def generator():
+        task = asyncio.create_task(
+            chat_with_operator(req.message, config["projects"], on_event)
+        )
+
+        while True:
+            try:
+                event = await asyncio.wait_for(queue.get(), timeout=1.0)
+                yield {"event": event["type"], "data": json.dumps(event, ensure_ascii=False)}
+                if event["type"] == "chat_reply":
+                    break
+            except asyncio.TimeoutError:
+                if task.done():
+                    break
+                continue
+
+        await task
+
+    return EventSourceResponse(generator())
+
+
+@app.get("/api/project/{project_id}/sources")
+async def project_sources(project_id: str):
+    emails = MOCK_EMAILS.get(project_id, [])
+    events = MOCK_EVENTS.get(project_id, [])
+    search = MOCK_SEARCH.get(project_id, "")
+    return {
+        "emails": emails,
+        "events": events,
+        "search": search,
+    }
 
 
 @app.get("/api/health")
