@@ -1,0 +1,29 @@
+{
+  "mode": "demo",
+  "projects": [
+    {
+      "id": "school",
+      "name": "Master IA \u2014 Sorbonne",
+      "contact": "prof.martinez@sorbonne.fr",
+      "deadline": "2026-03-18T23:59:00",
+      "color": "#00FF88",
+      "keywords": ["cours", "rendu", "memoire", "soutenance", "TP"]
+    },
+    {
+      "id": "company",
+      "name": "Alternance \u2014 BNP Paribas",
+      "contact": "sophie.renard@bnpparibas.com",
+      "deadline": "2026-03-17T09:00:00",
+      "color": "#FF4444",
+      "keywords": ["sprint", "daily", "jira", "livrable", "prod"]
+    },
+    {
+      "id": "startup",
+      "name": "Side Project \u2014 NoctaAI",
+      "contact": "yassine@noctaai.com",
+      "deadline": "2026-04-05T00:00:00",
+      "color": "#FF8800",
+      "keywords": ["NoctaAI", "MVP", "landing", "beta", "funding"]
+    }
+  ]
+}
