@@ -7,14 +7,21 @@ export default function useOperatorSSE() {
   const [projectStatuses, setProjectStatuses] = useState({});
   const [briefText, setBriefText] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [isLive, setIsLive] = useState(false);
 
   const startScan = useCallback(() => {
     setToolCalls([]);
     setProjectStatuses({});
     setBriefText(null);
     setIsScanning(true);
+    setIsLive(false);
 
     const source = new EventSource(`${BACKEND_URL}/api/run`);
+
+    source.addEventListener('mode', (e) => {
+      const data = JSON.parse(e.data);
+      setIsLive(data.live);
+    });
 
     source.addEventListener('tool_call', (e) => {
       const data = JSON.parse(e.data);
@@ -53,5 +60,5 @@ export default function useOperatorSSE() {
     };
   }, []);
 
-  return { toolCalls, projectStatuses, briefText, isScanning, startScan };
+  return { toolCalls, projectStatuses, briefText, isScanning, isLive, startScan };
 }

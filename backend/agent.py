@@ -8,9 +8,11 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+from google_auth import is_authenticated
+from google_services import fetch_emails, fetch_events
 from initiative import evaluate_project
 from mock_data import MOCK_EMAILS, MOCK_EVENTS
-from tools import get_events, read_emails, search_web
+from tools import get_events, read_emails, search_web, read_doc, list_docs
 from urgency import score_emails, score_urgency
 
 load_dotenv()
@@ -42,12 +44,18 @@ Interdictions :
 - Jamais de "je vais analyser" ou "voici mon analyse" — tu fais, tu ne commentes pas.
 - Ne repete jamais le contenu brut des emails. Synthetise.
 - Ne dis jamais "N/A" ou "aucune donnee". Si tu n'as pas l'info, n'en parle pas.
+
+Outils supplementaires :
+- Tu peux lire un Google Doc avec read_doc(doc_id) si un lien ou ID de doc est mentionne.
+- Tu peux lister les Google Docs recents avec list_docs().
 """
 
 TOOL_FUNCTIONS = {
     "read_emails": read_emails,
     "get_events": get_events,
     "search_web": search_web,
+    "read_doc": read_doc,
+    "list_docs": list_docs,
 }
 
 TOOL_DECLARATIONS = [
@@ -79,11 +87,48 @@ TOOL_DECLARATIONS = [
                 required=["project_id"],
             ),
         ),
+        types.FunctionDeclaration(
+            name="read_doc",
+            description="Lit le contenu d'un Google Doc par son ID. Retourne le titre et le texte.",
+            parameters=types.Schema(
+                type="OBJECT",
+                properties={"doc_id": types.Schema(type="STRING", description="L'ID du document Google Docs (depuis l'URL)")},
+                required=["doc_id"],
+            ),
+        ),
+        types.FunctionDeclaration(
+            name="list_docs",
+            description="Liste les Google Docs recemment modifies. Retourne titre, ID et date de modification.",
+            parameters=types.Schema(
+                type="OBJECT",
+                properties={},
+            ),
+        ),
     ])
 ]
 
 MAX_ITERATIONS = 15
 TIMEOUT_SECONDS = 30
+
+
+def _get_emails_for_scoring(project_id: str, keywords: list[str] | None = None) -> list[dict]:
+    """Get emails for the deterministic scoring phase.
+
+    Uses real Gmail data if authenticated, mock data otherwise.
+    """
+    if is_authenticated():
+        return fetch_emails(project_id, keywords=keywords)
+    return [dict(e) for e in MOCK_EMAILS.get(project_id, [])]
+
+
+def _get_events_for_scoring(project_id: str, keywords: list[str] | None = None) -> list[dict]:
+    """Get events for the deterministic scoring phase.
+
+    Uses real Calendar data if authenticated, mock data otherwise.
+    """
+    if is_authenticated():
+        return fetch_events(project_id, keywords=keywords)
+    return MOCK_EVENTS.get(project_id, [])
 
 
 async def run_operator(projects: list[dict], on_event: Callable) -> str:
@@ -97,6 +142,12 @@ async def run_operator(projects: list[dict], on_event: Callable) -> str:
         The final brief text.
     """
     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+
+    # Signal to frontend whether we're using live APIs
+    await on_event({
+        "type": "mode",
+        "live": is_authenticated(),
+    })
 
     project_summary = json.dumps(
         [{"id": p["id"], "name": p["name"], "contact": p["contact"], "deadline": p["deadline"]}
@@ -142,7 +193,7 @@ async def run_operator(projects: list[dict], on_event: Callable) -> str:
             await on_event({
                 "type": "tool_call",
                 "tool": tool_name,
-                "project": tool_args.get("project_id", ""),
+                "project": tool_args.get("project_id", tool_args.get("doc_id", "")),
                 "status": "running",
             })
 
@@ -156,14 +207,15 @@ async def run_operator(projects: list[dict], on_event: Callable) -> str:
                 result = f"Unknown tool: {tool_name}"
 
             pid = tool_args.get("project_id", "")
-            if pid not in collected_data:
-                collected_data[pid] = {}
-            collected_data[pid][tool_name] = result
+            if pid:
+                if pid not in collected_data:
+                    collected_data[pid] = {}
+                collected_data[pid][tool_name] = result
 
             await on_event({
                 "type": "tool_result",
                 "tool": tool_name,
-                "project": pid,
+                "project": pid or tool_args.get("doc_id", ""),
                 "result": result[:200],
                 "status": "done",
             })
@@ -180,16 +232,18 @@ async def run_operator(projects: list[dict], on_event: Callable) -> str:
         # Send function results back to Gemini
         response = chat.send_message(function_responses)
 
-    # --- Deterministic scoring phase (single pass, cached) ---
-    # Only process known project IDs (skip unknown ones Gemini may have invented)
+    # --- Deterministic scoring phase ---
     valid_pids = {p["id"] for p in projects}
     evaluations = {}
     for pid, data in collected_data.items():
         if pid not in valid_pids:
             continue
 
-        emails = MOCK_EMAILS.get(pid, [])
-        scored_emails = score_emails([dict(e) for e in emails])
+        project = next(p for p in projects if p["id"] == pid)
+        keywords = project.get("keywords", [])
+
+        emails = _get_emails_for_scoring(pid, keywords=keywords)
+        scored_emails = score_emails(emails)
 
         for e in scored_emails:
             await on_event({
@@ -199,8 +253,7 @@ async def run_operator(projects: list[dict], on_event: Callable) -> str:
                 "score": e["urgency_score"],
             })
 
-        project = next(p for p in projects if p["id"] == pid)
-        events = MOCK_EVENTS.get(pid, [])
+        events = _get_events_for_scoring(pid, keywords=keywords)
         search_score = score_urgency(data.get("search_web", ""))
 
         evaluation = evaluate_project(project, scored_emails, events, search_score)
@@ -213,7 +266,7 @@ async def run_operator(projects: list[dict], on_event: Callable) -> str:
             "alerts": evaluation["alerts"],
         })
 
-    # --- Final brief with initiative context (reuse cached evaluations) ---
+    # --- Final brief with initiative context ---
     initiative_summary = ""
     for pid, cached in evaluations.items():
         evaluation = cached["evaluation"]

@@ -4,6 +4,7 @@ import ProjectCard from './components/ProjectCard';
 import ToolFeed from './components/ToolFeed';
 import BriefPanel from './components/BriefPanel';
 import useOperatorSSE from './hooks/useOperatorSSE';
+import useGoogleAuth from './hooks/useGoogleAuth';
 
 const PROJECTS = [
   { id: 'school', name: 'Master IA \u2014 Sorbonne', contact: 'prof.martinez@sorbonne.fr', color: '#00FF88' },
@@ -13,6 +14,7 @@ const PROJECTS = [
 
 export default function App() {
   const { toolCalls, projectStatuses, briefText, isScanning, startScan } = useOperatorSSE();
+  const { authenticated, oauthAvailable, login, logout } = useGoogleAuth();
 
   // Auto-scan in demo mode (?demo=true)
   useEffect(() => {
@@ -25,7 +27,14 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      <Header onScan={startScan} isScanning={isScanning} />
+      <Header
+        onScan={startScan}
+        isScanning={isScanning}
+        authenticated={authenticated}
+        oauthAvailable={oauthAvailable}
+        onLogin={login}
+        onLogout={logout}
+      />
 
       <div style={{
         display: 'flex',
