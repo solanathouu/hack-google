@@ -36,10 +36,16 @@ export default function App() {
   });
 
   const handleOrbClick = useCallback(() => {
-    if (phaseRef.current === 'IDLE') {
-      setPhase('LISTENING');
+    if (phase === 'IDLE') {
+      if (micError || !micActive) {
+        // First click: authorize mic — wake word listener starts
+        requestMic();
+      } else {
+        // Mic already active — go to listening
+        setPhase('LISTENING');
+      }
     }
-  }, []);
+  }, [phase, micError, micActive, requestMic]);
 
   const handleUserSaid = useCallback(async (text) => {
     if (!text.trim()) return;

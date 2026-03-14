@@ -103,8 +103,8 @@ export default function useSpeechRecognition({ enabled, onResult, onTimeout, tim
 
   useEffect(() => {
     if (enabled) {
-      // Delay start to let browser release previous mic session (wake word uses it)
-      const timer = setTimeout(() => start(), 600);
+      // Delay start to let browser release previous mic session
+      const timer = setTimeout(() => start(), 300);
       return () => {
         clearTimeout(timer);
         cleanup();
