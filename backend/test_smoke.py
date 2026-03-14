@@ -12,8 +12,7 @@ def test_gemini_connection():
 
     client = genai.Client(api_key=api_key)
 
-    # Use gemini-2.0-flash — update MODEL_NAME if hackathon provides different model
-    MODEL_NAME = "gemini-2.0-flash"
+    MODEL_NAME = "gemini-2.5-flash"
 
     response = client.models.generate_content(
         model=MODEL_NAME,

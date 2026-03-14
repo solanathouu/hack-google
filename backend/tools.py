@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from google_auth import is_authenticated
-from google_services import fetch_emails, fetch_events, fetch_doc_content, list_recent_docs
+from google_services import fetch_emails, fetch_events, fetch_doc_content, list_recent_docs, search_project_signals
 from mock_data import MOCK_EMAILS, MOCK_EVENTS, MOCK_SEARCH
 
 
@@ -79,7 +79,23 @@ def get_events(project_id: str) -> str:
 
 
 def search_web(project_id: str) -> str:
-    """Search for recent external signals relevant to a project."""
+    """Search for recent external signals relevant to a project. Uses Gemini + Google Search grounding when possible."""
+    keywords = _load_project_keywords(project_id)
+    # Load project name from config
+    config_path = Path(__file__).parent / "config.json"
+    with open(config_path) as f:
+        config = json.load(f)
+    project_name = project_id
+    for p in config.get("projects", []):
+        if p["id"] == project_id:
+            project_name = p.get("name", project_id)
+            break
+
+    result = search_project_signals(project_name, keywords=keywords)
+    if result:
+        return result
+
+    # Fallback to mock data
     return MOCK_SEARCH.get(project_id, "No relevant external signals found.")
 
 

@@ -1,12 +1,18 @@
-"""Real Google API wrappers for Gmail, Calendar, and Docs."""
+"""Real Google API wrappers for Gmail, Calendar, Docs, and Search."""
 
 import base64
+import os
 import re
 from datetime import datetime, timedelta, timezone
 
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types
 from googleapiclient.discovery import build
 
 from google_auth import get_credentials
+
+load_dotenv()
 
 
 def _get_gmail_service():
@@ -146,17 +152,14 @@ def fetch_events(project_id: str, keywords: list[str] | None = None, days_ahead:
     time_max = (now + timedelta(days=days_ahead)).isoformat()
 
     try:
-        # Search query with keywords if provided
-        q = " ".join(keywords) if keywords else None
-
+        # Fetch all events, filter locally by keywords for better matching
         results = service.events().list(
             calendarId="primary",
             timeMin=time_min,
             timeMax=time_max,
-            maxResults=20,
+            maxResults=30,
             singleEvents=True,
             orderBy="startTime",
-            q=q,
         ).execute()
 
         items = results.get("items", [])
@@ -166,8 +169,13 @@ def fetch_events(project_id: str, keywords: list[str] | None = None, days_ahead:
             start = item["start"].get("dateTime", item["start"].get("date", ""))
             title = item.get("summary", "Sans titre")
 
-            # Detect prep blocks: events with "prep" in title or short (<=30min) events
-            # right before other events
+            # Filter by keywords if provided (case-insensitive, any keyword matches)
+            if keywords:
+                title_lower = title.lower()
+                if not any(k.lower() in title_lower for k in keywords):
+                    continue
+
+            # Detect prep blocks
             is_prep = bool(re.search(r"prep|preparation|revision", title, re.IGNORECASE))
 
             events.append({
@@ -251,3 +259,34 @@ def list_recent_docs(max_results: int = 5) -> list[dict]:
     except Exception as e:
         print(f"Drive API error: {e}")
         return []
+
+
+def search_project_signals(project_name: str, keywords: list[str] | None = None) -> str:
+    """Search the web for recent signals relevant to a project using Gemini + Google Search grounding.
+
+    Returns a concise summary of external signals (news, funding, announcements).
+    """
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        return ""
+
+    search_terms = project_name
+    if keywords:
+        search_terms += " " + " ".join(keywords[:3])
+
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=(
+                f"Recherche les actualites recentes et signaux externes pertinents pour : {search_terms}. "
+                "Donne 2-3 bullet points courts en francais. Seulement les infos factuelles et recentes."
+            ),
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+            ),
+        )
+        return response.text.strip() if response.text else ""
+    except Exception as e:
+        print(f"Google Search grounding error: {e}")
+        return ""

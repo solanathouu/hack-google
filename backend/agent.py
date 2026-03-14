@@ -156,7 +156,7 @@ async def run_operator(projects: list[dict], on_event: Callable) -> str:
     )
 
     chat = client.chats.create(
-        model="gemini-3-flash-preview",
+        model="gemini-2.5-flash",
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
             tools=TOOL_DECLARATIONS,
