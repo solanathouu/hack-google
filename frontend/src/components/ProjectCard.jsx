@@ -3,10 +3,10 @@ import { useState } from 'react';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 const STATUS_CONFIG = {
-  STANDBY: { label: 'STANDBY', bg: '#222', color: '#666' },
-  READY: { label: 'READY', bg: '#00FF8822', color: '#00FF88' },
-  URGENT: { label: 'URGENT', bg: '#FF444433', color: '#FF4444' },
-  SIGNAL: { label: 'SIGNAL', bg: '#FF880033', color: '#FF8800' },
+  STANDBY: { label: 'STANDBY', bg: '#f1f3f4', color: '#5f6368' },
+  READY: { label: 'READY', bg: 'rgba(52,168,83,0.1)', color: '#1e8e3e' },
+  URGENT: { label: 'URGENT', bg: 'rgba(234,67,53,0.1)', color: '#d93025' },
+  SIGNAL: { label: 'SIGNAL', bg: 'rgba(251,188,4,0.1)', color: '#e37400' },
 };
 
 function formatDate(dateStr) {
@@ -28,21 +28,14 @@ export default function ProjectCard({ project, status, alerts }) {
   const [loading, setLoading] = useState(false);
 
   const handleClick = async () => {
-    if (expanded) {
-      setExpanded(false);
-      return;
-    }
+    if (expanded) { setExpanded(false); return; }
     if (!sources) {
       setLoading(true);
       try {
         const res = await fetch(`${BACKEND_URL}/api/project/${project.id}/sources`);
-        const data = await res.json();
-        setSources(data);
-      } catch (err) {
-        console.error('Failed to load sources:', err);
-      } finally {
-        setLoading(false);
-      }
+        setSources(await res.json());
+      } catch (err) { console.error(err); }
+      finally { setLoading(false); }
     }
     setExpanded(true);
   };
@@ -51,59 +44,49 @@ export default function ProjectCard({ project, status, alerts }) {
     <div
       onClick={handleClick}
       style={{
-        background: 'var(--card-bg)',
+        background: '#ffffff',
+        border: '1px solid #e0e0e0',
         borderLeft: `4px solid ${project.color}`,
-        padding: '20px',
-        flex: 1,
-        minWidth: '250px',
+        borderRadius: '12px',
+        padding: '16px 20px',
+        flex: '1 1 280px',
+        minWidth: '0',
+        maxWidth: '100%',
         cursor: 'pointer',
-        transition: 'all 0.2s',
-        animation: status !== 'STANDBY' ? 'fadeIn 0.5s ease-out' : 'none',
+        transition: 'box-shadow 0.2s',
+        overflow: 'hidden',
+        wordBreak: 'break-word',
       }}
+      onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)'}
+      onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
     >
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '12px',
-      }}>
-        <span style={{ fontSize: '11px', color: 'var(--text-dim)', letterSpacing: '2px' }}>
-          PROJECT
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <span style={{ fontSize: '11px', color: '#5f6368', letterSpacing: '1px', fontWeight: 500 }}>
+          PROJET
         </span>
         <span style={{
-          fontSize: '11px',
-          fontWeight: 700,
-          padding: '4px 10px',
-          background: st.bg,
-          color: st.color,
-          letterSpacing: '1px',
+          fontSize: '11px', fontWeight: 600, padding: '3px 10px',
+          background: st.bg, color: st.color, borderRadius: '10px',
           animation: status === 'URGENT' ? 'pulse 1.5s infinite' : 'none',
         }}>
           {st.label}
         </span>
       </div>
 
-      <h3 style={{ fontSize: '16px', color: '#fff', marginBottom: '8px' }}>
+      <h3 style={{ fontSize: '15px', color: '#1f1f1f', marginBottom: '6px', fontWeight: 600 }}>
         {project.name}
       </h3>
 
       {project.contact && (
-        <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '12px' }}>
-          {project.contact}
-        </p>
+        <p style={{ fontSize: '12px', color: '#5f6368', marginBottom: '10px' }}>{project.contact}</p>
       )}
 
       {alerts && alerts.length > 0 && (
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {alerts.map((alert, i) => (
             <li key={i} style={{
-              fontSize: '12px',
-              color: st.color,
-              padding: '6px 0',
-              borderTop: '1px solid var(--border)',
-              animation: 'slideIn 0.3s ease-out',
-              animationDelay: `${i * 0.15}s`,
-              animationFillMode: 'both',
+              fontSize: '12px', color: st.color, padding: '5px 0',
+              borderTop: '1px solid #f1f3f4',
             }}>
               {alert}
             </li>
@@ -111,114 +94,71 @@ export default function ProjectCard({ project, status, alerts }) {
         </ul>
       )}
 
-      {/* Expand hint */}
-      {!expanded && status !== 'STANDBY' && (
-        <div style={{
-          fontSize: '10px',
-          color: '#555',
-          marginTop: '8px',
-          letterSpacing: '1px',
-          textAlign: 'center',
-        }}>
-          CLIQUER POUR VOIR LES SOURCES
+      {!expanded && (
+        <div style={{ fontSize: '11px', color: '#9aa0a6', marginTop: '8px', textAlign: 'center' }}>
+          Cliquer pour voir les sources
         </div>
       )}
 
-      {/* Loading */}
       {loading && (
-        <div style={{
-          fontSize: '11px',
-          color: 'var(--text-dim)',
-          marginTop: '12px',
-          fontStyle: 'italic',
-        }}>
+        <div style={{ fontSize: '12px', color: '#5f6368', marginTop: '10px', fontStyle: 'italic' }}>
           Chargement...
         </div>
       )}
 
-      {/* Sources panel */}
       {expanded && sources && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            marginTop: '14px',
-            borderTop: `1px solid ${project.color}33`,
-            paddingTop: '14px',
-            animation: 'fadeIn 0.3s ease-out',
-          }}
-        >
+        <div onClick={(e) => e.stopPropagation()} style={{
+          marginTop: '14px', borderTop: '1px solid #e0e0e0', paddingTop: '14px',
+          animation: 'fadeIn 0.3s ease-out',
+        }}>
           {/* Emails */}
           {sources.emails && sources.emails.length > 0 && (
-            <div style={{ marginBottom: '14px' }}>
-              <div style={{
-                fontSize: '10px',
-                color: project.color,
-                letterSpacing: '2px',
-                marginBottom: '8px',
-                fontWeight: 700,
-              }}>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '11px', color: project.color, letterSpacing: '1px', marginBottom: '8px', fontWeight: 600 }}>
                 EMAILS
               </div>
               {sources.emails.map((email, i) => (
                 <div key={i} style={{
-                  padding: '8px 10px',
-                  background: '#0d0d0d',
-                  borderRadius: '4px',
-                  marginBottom: '6px',
-                  fontSize: '12px',
+                  padding: '10px 12px', background: '#f8f9fa', borderRadius: '8px',
+                  marginBottom: '6px', fontSize: '13px',
                 }}>
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '4px',
-                  }}>
-                    <span style={{ color: '#e0e0e0', fontWeight: 600 }}>
-                      {email.subject}
-                    </span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <span style={{ color: '#1f1f1f', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{email.subject}</span>
                     <span style={{
-                      fontSize: '10px',
-                      color: email.days_since_reply >= 5 ? 'var(--red)' : 'var(--text-dim)',
+                      fontSize: '11px',
+                      color: email.days_since_reply >= 5 ? '#d93025' : '#5f6368',
+                      fontWeight: email.days_since_reply >= 5 ? 600 : 400,
                     }}>
                       {email.days_since_reply != null ? `${email.days_since_reply}j` : ''}
                     </span>
                   </div>
-                  <div style={{ color: '#888', fontSize: '11px', marginBottom: '6px' }}>
+                  <div style={{ color: '#5f6368', fontSize: '12px', marginBottom: '6px' }}>
                     De : {email.from} &middot; {formatDate(email.date)}
                   </div>
-                  <div style={{ color: '#aaa', fontSize: '11px', lineHeight: '1.4', marginBottom: '8px' }}>
+                  <div style={{ color: '#3c4043', fontSize: '12px', lineHeight: '1.5', marginBottom: '8px' }}>
                     {email.body}
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <a
                       href={`mailto:${email.from}?subject=Re: ${email.subject}`}
                       style={{
-                        fontSize: '10px',
-                        color: project.color,
-                        textDecoration: 'none',
-                        padding: '3px 8px',
-                        border: `1px solid ${project.color}44`,
-                        borderRadius: '3px',
-                        letterSpacing: '0.5px',
+                        fontSize: '11px', color: '#4285f4', textDecoration: 'none',
+                        padding: '4px 10px', border: '1px solid #4285f4',
+                        borderRadius: '14px', fontWeight: 500,
                       }}
                     >
-                      REPONDRE
+                      Repondre
                     </a>
                     <a
                       href={`https://mail.google.com/mail/u/0/#search/from:${email.from}+subject:${encodeURIComponent(email.subject)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      target="_blank" rel="noopener noreferrer"
                       style={{
-                        fontSize: '10px',
-                        color: '#888',
-                        textDecoration: 'none',
-                        padding: '3px 8px',
-                        border: '1px solid #333',
-                        borderRadius: '3px',
-                        letterSpacing: '0.5px',
+                        fontSize: '11px', color: '#5f6368', textDecoration: 'none',
+                        padding: '4px 10px', border: '1px solid #e0e0e0',
+                        borderRadius: '14px',
                       }}
                     >
-                      OUVRIR DANS GMAIL
+                      Ouvrir dans Gmail
                     </a>
                   </div>
                 </div>
@@ -228,55 +168,36 @@ export default function ProjectCard({ project, status, alerts }) {
 
           {/* Events */}
           {sources.events && sources.events.length > 0 && (
-            <div style={{ marginBottom: '14px' }}>
-              <div style={{
-                fontSize: '10px',
-                color: project.color,
-                letterSpacing: '2px',
-                marginBottom: '8px',
-                fontWeight: 700,
-              }}>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '11px', color: project.color, letterSpacing: '1px', marginBottom: '8px', fontWeight: 600 }}>
                 CALENDRIER
               </div>
               {sources.events.map((event, i) => (
                 <div key={i} style={{
-                  padding: '8px 10px',
-                  background: '#0d0d0d',
-                  borderRadius: '4px',
-                  marginBottom: '6px',
-                  fontSize: '12px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
+                  padding: '10px 12px', background: '#f8f9fa', borderRadius: '8px',
+                  marginBottom: '6px', fontSize: '13px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}>
                   <div>
-                    <div style={{ color: '#e0e0e0', fontWeight: 600 }}>
-                      {event.title}
-                    </div>
-                    <div style={{ color: '#888', fontSize: '11px', marginTop: '2px' }}>
+                    <div style={{ color: '#1f1f1f', fontWeight: 600 }}>{event.title}</div>
+                    <div style={{ color: '#5f6368', fontSize: '12px', marginTop: '2px' }}>
                       {formatTime(event.time)}
                       {event.prep_block
-                        ? <span style={{ color: 'var(--green)', marginLeft: '8px' }}>Prep OK</span>
-                        : <span style={{ color: 'var(--red)', marginLeft: '8px' }}>Pas de prep</span>
+                        ? <span style={{ color: '#1e8e3e', marginLeft: '8px', fontWeight: 500 }}>Prep OK</span>
+                        : <span style={{ color: '#d93025', marginLeft: '8px', fontWeight: 500 }}>Pas de prep</span>
                       }
                     </div>
                   </div>
                   <a
                     href={`https://calendar.google.com/calendar/r/search?q=${encodeURIComponent(event.title)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    target="_blank" rel="noopener noreferrer"
                     style={{
-                      fontSize: '10px',
-                      color: '#888',
-                      textDecoration: 'none',
-                      padding: '3px 8px',
-                      border: '1px solid #333',
-                      borderRadius: '3px',
-                      letterSpacing: '0.5px',
-                      flexShrink: 0,
+                      fontSize: '11px', color: '#4285f4', textDecoration: 'none',
+                      padding: '4px 10px', border: '1px solid #4285f4',
+                      borderRadius: '14px', fontWeight: 500, flexShrink: 0,
                     }}
                   >
-                    AGENDA
+                    Ouvrir l'agenda
                   </a>
                 </div>
               ))}
@@ -286,37 +207,20 @@ export default function ProjectCard({ project, status, alerts }) {
           {/* Web signal */}
           {sources.search && (
             <div>
-              <div style={{
-                fontSize: '10px',
-                color: project.color,
-                letterSpacing: '2px',
-                marginBottom: '8px',
-                fontWeight: 700,
-              }}>
+              <div style={{ fontSize: '11px', color: project.color, letterSpacing: '1px', marginBottom: '8px', fontWeight: 600 }}>
                 SIGNAL EXTERNE
               </div>
               <div style={{
-                padding: '8px 10px',
-                background: '#0d0d0d',
-                borderRadius: '4px',
-                fontSize: '12px',
-                color: '#aaa',
-                lineHeight: '1.4',
+                padding: '10px 12px', background: '#f8f9fa', borderRadius: '8px',
+                fontSize: '12px', color: '#3c4043', lineHeight: '1.5',
               }}>
                 {sources.search}
               </div>
             </div>
           )}
 
-          {/* Collapse hint */}
-          <div style={{
-            fontSize: '10px',
-            color: '#444',
-            marginTop: '10px',
-            letterSpacing: '1px',
-            textAlign: 'center',
-          }}>
-            CLIQUER POUR FERMER
+          <div style={{ fontSize: '11px', color: '#9aa0a6', marginTop: '12px', textAlign: 'center' }}>
+            Cliquer pour fermer
           </div>
         </div>
       )}

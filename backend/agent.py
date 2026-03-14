@@ -15,7 +15,7 @@ from urgency import score_emails, score_urgency
 
 load_dotenv()
 
-SYSTEM_PROMPT = """Tu es Operator — l'assistant personnel d'un etudiant en alternance qui jongle entre ses cours, son entreprise et sa startup.
+SYSTEM_PROMPT = """Tu es Oppy — l'assistant personnel d'un etudiant en alternance qui jongle entre ses cours, son entreprise et sa startup.
 
 Tu parles comme un vrai chef de projet bienveillant mais direct. Pas de blabla corporate. Tu connais la personne, tu sais qu'elle est debordee. Tu lui parles comme un mentor qui a regarde ses mails et son agenda a sa place.
 
@@ -134,7 +134,7 @@ def create_chat_session(projects: list[dict]):
     project_summary = build_operator_context(projects)
 
     chat_system = (
-        "Tu es Operator, l'assistant personnel vocal d'un etudiant en alternance. "
+        "Tu es Oppy, l'assistant personnel vocal d'un etudiant en alternance. "
         "Tu es en mode CONVERSATION. L'utilisateur te parle et te pose des questions. "
         "Tu REPONDS UNIQUEMENT a ce qu'il demande. Tu ne fais JAMAIS de brief complet sauf s'il le demande explicitement.\n\n"
         "REGLE ABSOLUE : lis la question de l'utilisateur et reponds SEULEMENT a cette question. "
@@ -185,7 +185,7 @@ async def chat_with_operator(message: str, chat_session, on_event: Callable) -> 
 
 
 async def run_operator(projects: list[dict], on_event: Callable) -> str:
-    """Run the Operator agent loop.
+    """Run the Oppy agent loop.
 
     Args:
         projects: list of project dicts from config.json

@@ -4,12 +4,6 @@ import ProjectCard from './ProjectCard';
 export default function ProjectCardsDrawer({ projects, statuses }) {
   const [open, setOpen] = useState(false);
 
-  const statusDots = projects.map(p => {
-    const s = statuses[p.id]?.status || 'STANDBY';
-    const colors = { STANDBY: '#444', READY: '#00FF88', URGENT: '#FF4444', SIGNAL: '#FF8800' };
-    return { id: p.id, color: colors[s] || '#444' };
-  });
-
   return (
     <div style={{
       position: 'fixed',
@@ -25,31 +19,21 @@ export default function ProjectCardsDrawer({ projects, statuses }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '12px',
+          gap: '10px',
           padding: '10px',
-          background: '#111',
-          borderTop: '1px solid #222',
+          background: '#ffffff',
+          borderTop: '1px solid #e0e0e0',
           cursor: 'pointer',
         }}
       >
-        <div style={{ display: 'flex', gap: '6px' }}>
-          {statusDots.map(d => (
-            <div key={d.id} style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: d.color,
-            }} />
-          ))}
-        </div>
         <span style={{
-          fontSize: '11px',
-          color: 'var(--text-dim)',
-          letterSpacing: '1px',
+          fontSize: '13px',
+          color: '#1f1f1f',
+          fontWeight: 500,
         }}>
-          {open ? 'FERMER' : '3 PROJETS'}
+          {open ? 'Fermer les projets' : `${projects.length} projets`}
         </span>
-        <span style={{ fontSize: '10px', color: '#555' }}>
+        <span style={{ fontSize: '10px', color: '#5f6368' }}>
           {open ? '\u25BC' : '\u25B2'}
         </span>
       </div>
@@ -57,12 +41,13 @@ export default function ProjectCardsDrawer({ projects, statuses }) {
       {/* Drawer content */}
       {open && (
         <div style={{
-          background: '#0a0a0a',
-          borderTop: '1px solid #222',
+          background: '#f8f9fa',
+          borderTop: '1px solid #e0e0e0',
           padding: '16px 24px',
           display: 'flex',
+          flexWrap: 'wrap',
           gap: '12px',
-          maxHeight: '50vh',
+          maxHeight: '55vh',
           overflowY: 'auto',
           animation: 'fadeIn 0.2s ease-out',
         }}>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import JarvisOrb from './components/JarvisOrb';
 import ConversationOverlay from './components/ConversationOverlay';
 import ProjectCardsDrawer from './components/ProjectCardsDrawer';
@@ -8,17 +8,17 @@ import useSpeechRecognition from './hooks/useSpeechRecognition';
 import useTTS from './hooks/useTTS';
 
 const PROJECTS = [
-  { id: 'school', name: 'Master IA \u2014 Sorbonne', contact: 'prof.martinez@sorbonne.fr', color: '#00FF88' },
-  { id: 'company', name: 'Alternance \u2014 BNP Paribas', contact: 'sophie.renard@bnpparibas.com', color: '#FF4444' },
-  { id: 'startup', name: 'Side Project \u2014 NoctaAI', contact: 'yassine@noctaai.com', color: '#FF8800' },
+  { id: 'school', name: 'Master IA \u2014 Sorbonne', contact: 'prof.martinez@sorbonne.fr', color: '#4285f4' },
+  { id: 'company', name: 'Alternance \u2014 BNP Paribas', contact: 'sophie.renard@bnpparibas.com', color: '#ea4335' },
+  { id: 'startup', name: 'Side Project \u2014 NoctaAI', contact: 'yassine@noctaai.com', color: '#fbbc04' },
 ];
 
 export default function App() {
-  const { projectStatuses, briefText, isScanning, startScan, sendChat, feedLines } = useOperatorSSE();
-  const { speak, isSpeaking } = useTTS();
+  const { sendChat } = useOperatorSSE();
+  const { speak } = useTTS();
 
-  // Phase: LOADING | IDLE | LISTENING | THINKING | SPEAKING
-  const [phase, setPhase] = useState('LOADING');
+  // Start directly in IDLE — no scan needed
+  const [phase, setPhase] = useState('IDLE');
   const [messages, setMessages] = useState([]);
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
@@ -26,21 +26,8 @@ export default function App() {
   const [inputText, setInputText] = useState('');
   const [showTranscript, setShowTranscript] = useState(false);
 
-  // ---- 1. Silent scan on mount ----
-  useEffect(() => { startScan(); }, [startScan]);
-
-  // ---- 2. Scan complete -> IDLE ----
-  useEffect(() => {
-    if (briefText && phase === 'LOADING') {
-      setPhase('IDLE');
-    }
-  }, [briefText, phase]);
-
-  // ---- 3. Wake word detection (active only in IDLE) ----
   const handleWakeWord = useCallback(() => {
-    if (phaseRef.current === 'IDLE') {
-      setPhase('LISTENING');
-    }
+    if (phaseRef.current === 'IDLE') setPhase('LISTENING');
   }, []);
 
   const { micActive, micError, requestMic } = useWakeWord({
@@ -48,27 +35,20 @@ export default function App() {
     onDetected: handleWakeWord,
   });
 
-  // ---- 4. Orb click ----
   const handleOrbClick = useCallback(() => {
     if (phase === 'IDLE') {
-      if (micError || !micActive) {
-        // First click: authorize mic, then wake word listener starts
-        requestMic();
-      } else {
-        // Mic already active — skip to listening
-        setPhase('LISTENING');
-      }
+      if (micError || !micActive) requestMic();
+      else setPhase('LISTENING');
     }
   }, [phase, micError, micActive, requestMic]);
 
-  // ---- 5. Speech recognition (active in LISTENING) ----
   const handleUserSaid = useCallback(async (text) => {
     if (!text.trim()) return;
 
     const bye = text.toLowerCase();
     if (bye.includes('merci') || bye.includes("c'est bon") || bye.includes('a plus') || bye.includes('au revoir')) {
       setMessages(prev => [...prev, { role: 'user', text }]);
-      const farewell = "Ok, je reste la si tu as besoin. Dis 'Jarvis' quand tu veux.";
+      const farewell = "Ok, je reste la si tu as besoin. Dis 'Oppy' quand tu veux.";
       setMessages(prev => [...prev, { role: 'assistant', text: farewell }]);
       setPhase('SPEAKING');
       await speak(farewell);
@@ -78,7 +58,6 @@ export default function App() {
 
     setMessages(prev => [...prev, { role: 'user', text }]);
     setPhase('SPEAKING');
-    // Say a short acknowledgment while fetching the real answer
     const acks = [
       "D'accord, donne-moi un petit instant.",
       "Je regarde ca tout de suite.",
@@ -87,7 +66,6 @@ export default function App() {
     ];
     const ack = acks[Math.floor(Math.random() * acks.length)];
     const ackDone = speak(ack);
-    // Start fetching the answer in parallel
     const replyPromise = sendChat(text);
     await ackDone;
     setPhase('THINKING');
@@ -98,9 +76,7 @@ export default function App() {
         setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
         setPhase('SPEAKING');
         await speak(reply);
-        if (phaseRef.current === 'SPEAKING') {
-          setPhase('LISTENING');
-        }
+        if (phaseRef.current === 'SPEAKING') setPhase('LISTENING');
       } else {
         setPhase('LISTENING');
       }
@@ -111,9 +87,7 @@ export default function App() {
   }, [sendChat, speak]);
 
   const handleTimeout = useCallback(() => {
-    if (phaseRef.current === 'LISTENING') {
-      setPhase('IDLE');
-    }
+    if (phaseRef.current === 'LISTENING') setPhase('IDLE');
   }, []);
 
   const { transcript } = useSpeechRecognition({
@@ -123,7 +97,6 @@ export default function App() {
     timeoutMs: 20000,
   });
 
-  // ---- 6. Text input submit ----
   const handleSubmit = (e) => {
     e.preventDefault();
     const text = inputText.trim();
@@ -132,20 +105,17 @@ export default function App() {
     handleUserSaid(text);
   };
 
-  // ---- Phase label ----
   let label = '';
-  if (phase === 'LOADING') label = 'Initialisation...';
-  else if (phase === 'IDLE') {
+  if (phase === 'IDLE') {
     if (micError) label = "Clique sur l'orbe pour autoriser le micro";
     else if (!micActive) label = "Clique sur l'orbe pour activer le micro";
-    else label = "Micro actif — dis 'Jarvis' pour commencer";
+    else label = "Micro actif — dis 'Oppy' pour commencer";
   }
   else if (phase === 'LISTENING') label = transcript || "Je t'ecoute...";
-  else if (phase === 'THINKING') label = 'Operator reflechit...';
+  else if (phase === 'THINKING') label = 'Oppy reflechit...';
   else if (phase === 'SPEAKING') label = '';
 
-  // Mic status indicator
-  const micDot = phase === 'IDLE' && micActive ? '#00FF88' : phase === 'IDLE' && micError ? '#FF4444' : null;
+  const micDotColor = phase === 'IDLE' && micActive ? '#34a853' : phase === 'IDLE' && micError ? '#ea4335' : null;
 
   return (
     <div style={{
@@ -162,25 +132,36 @@ export default function App() {
         position: 'fixed',
         top: 0,
         left: 0,
-        padding: '16px 24px',
+        padding: '20px 24px',
         zIndex: 10,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
       }}>
-        <h1 style={{
-          fontSize: '14px',
-          color: 'var(--green)',
-          letterSpacing: '4px',
-          opacity: 0.6,
-          margin: 0,
+        <span style={{
+          fontSize: '20px',
+          background: 'linear-gradient(135deg, #4285f4, #a142f4, #f439a0)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
         }}>
-          OPERATOR
+          &#10022;
+        </span>
+        <h1 style={{
+          fontSize: '16px',
+          fontWeight: 500,
+          color: '#1f1f1f',
+          margin: 0,
+          letterSpacing: '0.5px',
+        }}>
+          Oppy
         </h1>
       </div>
 
       {/* Orb */}
-      <JarvisOrb phase={phase} onClick={handleOrbClick} isLoading={isScanning} />
+      <JarvisOrb phase={phase} onClick={handleOrbClick} isLoading={false} />
 
       {/* Mic status dot */}
-      {micDot && (
+      {micDotColor && (
         <div style={{
           marginTop: '12px',
           display: 'flex',
@@ -188,75 +169,47 @@ export default function App() {
           gap: '6px',
         }}>
           <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            background: micDot,
+            width: '8px', height: '8px', borderRadius: '50%',
+            background: micDotColor,
             animation: micActive ? 'pulse 2s infinite' : 'none',
           }} />
-          <span style={{ fontSize: '10px', color: micDot, letterSpacing: '1px' }}>
-            {micActive ? 'MICRO ACTIF' : 'MICRO BLOQUE'}
+          <span style={{ fontSize: '11px', color: micDotColor, letterSpacing: '0.5px' }}>
+            {micActive ? 'Micro actif' : 'Micro bloque'}
           </span>
         </div>
       )}
 
       {/* Phase label */}
       <div style={{
-        marginTop: micDot ? '8px' : '24px',
-        fontSize: '13px',
-        color: phase === 'LISTENING' && transcript ? 'var(--green)' : 'var(--text-dim)',
-        letterSpacing: '1px',
+        marginTop: micDotColor ? '8px' : '24px',
+        fontSize: '14px',
+        color: phase === 'LISTENING' && transcript ? '#4285f4' : '#5f6368',
         textAlign: 'center',
         minHeight: '20px',
         animation: phase === 'THINKING' ? 'pulse 1.5s infinite' : 'none',
-        fontStyle: phase === 'LISTENING' && transcript ? 'normal' : 'italic',
+        fontWeight: phase === 'LISTENING' && transcript ? 500 : 400,
       }}>
         {label}
       </div>
 
-      {/* Live feed during scan */}
-      {phase === 'LOADING' && feedLines.length > 0 && (
-        <div style={{
-          marginTop: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '4px',
-          maxWidth: '400px',
-        }}>
-          {feedLines.map((line) => (
-            <div key={line.id} style={{
-              fontSize: '11px',
-              color: line.color,
-              letterSpacing: '0.5px',
-              animation: 'fadeInUp 0.3s ease-out',
-              whiteSpace: 'nowrap',
-            }}>
-              {line.text}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Transcript toggle + conversation */}
+      {/* Transcript toggle */}
       {messages.length > 0 && (
         <div style={{ marginTop: '16px', textAlign: 'center' }}>
           <button
             onClick={() => setShowTranscript(!showTranscript)}
             style={{
-              background: 'none',
-              border: '1px solid #333',
-              color: 'var(--text-dim)',
-              padding: '4px 14px',
-              borderRadius: '12px',
+              background: showTranscript ? '#f1f3f4' : 'transparent',
+              border: '1px solid #e0e0e0',
+              color: '#5f6368',
+              padding: '6px 16px',
+              borderRadius: '16px',
               fontFamily: 'inherit',
-              fontSize: '10px',
-              letterSpacing: '1px',
+              fontSize: '12px',
               cursor: 'pointer',
               transition: 'all 0.2s',
             }}
           >
-            {showTranscript ? 'MASQUER LA TRANSCRIPTION' : 'AFFICHER LA TRANSCRIPTION'}
+            {showTranscript ? 'Masquer la transcription' : 'Afficher la transcription'}
           </button>
         </div>
       )}
@@ -286,42 +239,41 @@ export default function App() {
           type="text"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          disabled={phase === 'LOADING'}
-          placeholder={phase === 'LOADING' ? 'Chargement...' : 'Ou ecris ta question ici...'}
+          placeholder="Ecris ta question ici..."
           style={{
             flex: 1,
-            background: '#111',
-            border: '1px solid #333',
+            background: '#f8f9fa',
+            border: '1px solid #e0e0e0',
             borderRadius: '24px',
             padding: '12px 20px',
-            color: '#e0e0e0',
+            color: '#1f1f1f',
             fontFamily: 'inherit',
-            fontSize: '13px',
+            fontSize: '14px',
             outline: 'none',
           }}
         />
         <button
           type="submit"
-          disabled={!inputText.trim() || phase === 'THINKING' || phase === 'LOADING'}
+          disabled={!inputText.trim() || phase === 'THINKING'}
           style={{
-            background: inputText.trim() ? 'var(--green)' : '#333',
-            color: '#0a0a0a',
+            background: inputText.trim() ? '#4285f4' : '#f1f3f4',
+            color: inputText.trim() ? '#fff' : '#9aa0a6',
             border: 'none',
             borderRadius: '24px',
             padding: '12px 20px',
             fontFamily: 'inherit',
-            fontSize: '12px',
-            fontWeight: 700,
+            fontSize: '13px',
+            fontWeight: 500,
             cursor: !inputText.trim() ? 'not-allowed' : 'pointer',
             transition: 'all 0.2s',
           }}
         >
-          ENVOYER
+          Envoyer
         </button>
       </form>
 
       {/* Project cards drawer */}
-      <ProjectCardsDrawer projects={PROJECTS} statuses={projectStatuses} />
+      <ProjectCardsDrawer projects={PROJECTS} statuses={{}} />
     </div>
   );
 }

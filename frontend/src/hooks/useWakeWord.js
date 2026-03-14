@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-// Broad matching — French STT transcribes "Jarvis" in many ways
+// Broad matching — French STT transcribes "Oppy" in many ways
 function matchesWakeWord(transcript) {
   const t = transcript.toLowerCase().replace(/[.,!?']/g, '').trim();
-  // Match "jarvis" anywhere, plus common misheard variants
-  return /jarvis|jarvice|jar vis|j'arvis|jharvis|jarvi$/.test(t);
+  return /oppy|opi|op[iy]e?|o[pb]+[iy]|hey op|ok op/.test(t);
 }
 
 export default function useWakeWord({ enabled, onDetected }) {

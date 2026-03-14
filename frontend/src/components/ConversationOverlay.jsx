@@ -22,27 +22,26 @@ export default function ConversationOverlay({ messages, isThinking }) {
     }}>
       {messages.map((msg, i) => (
         <div key={i} style={{
-          padding: '10px 16px',
-          borderRadius: '8px',
-          fontSize: '13px',
+          padding: '12px 16px',
+          borderRadius: '12px',
+          fontSize: '14px',
           lineHeight: '1.6',
           whiteSpace: 'pre-wrap',
-          background: msg.role === 'user' ? '#1a2a1a' : '#1a1a2a',
-          borderLeft: `3px solid ${msg.role === 'user' ? 'var(--green)' : '#6666ff'}`,
-          color: '#e0e0e0',
+          background: msg.role === 'user' ? '#e8f0fe' : '#f8f9fa',
+          borderLeft: `3px solid ${msg.role === 'user' ? '#4285f4' : '#a142f4'}`,
+          color: '#1f1f1f',
           animation: 'fadeInUp 0.3s ease-out',
           alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
           maxWidth: '85%',
         }}>
           <span style={{
-            fontSize: '10px',
-            color: msg.role === 'user' ? 'var(--green)' : '#6666ff',
-            letterSpacing: '1px',
-            fontWeight: 700,
+            fontSize: '11px',
+            color: msg.role === 'user' ? '#4285f4' : '#a142f4',
+            fontWeight: 500,
             display: 'block',
             marginBottom: '4px',
           }}>
-            {msg.role === 'user' ? 'TOI' : 'OPERATOR'}
+            {msg.role === 'user' ? 'Toi' : 'Oppy'}
           </span>
           {msg.text}
         </div>
@@ -50,13 +49,13 @@ export default function ConversationOverlay({ messages, isThinking }) {
 
       {isThinking && (
         <div style={{
-          padding: '10px 16px',
-          fontSize: '13px',
-          color: '#FF8800',
+          padding: '12px 16px',
+          fontSize: '14px',
+          color: '#a142f4',
           fontStyle: 'italic',
           animation: 'pulse 1.5s infinite',
         }}>
-          Operator reflechit...
+          Oppy reflechit...
         </div>
       )}
 
