@@ -50,10 +50,16 @@ export default function App() {
   const handleUserSaid = useCallback(async (text) => {
     if (!text.trim()) return;
 
-    const bye = text.toLowerCase();
-    if (bye.includes('merci') || bye.includes("c'est bon") || bye.includes('a plus') || bye.includes('au revoir')) {
+    const bye = text.toLowerCase().trim();
+    const byePhrases = ['merci', "c'est bon", 'a plus', 'au revoir', 'non', 'non merci', 'ca ira', 'ça ira', 'pas pour le moment', 'rien', "c'est tout", 'stop'];
+    if (byePhrases.some(p => bye.includes(p))) {
       setMessages(prev => [...prev, { role: 'user', text }]);
-      const farewell = "Ok, je reste la si tu as besoin. Dis 'Oppy' quand tu veux.";
+      const farewells = [
+        "Ok, je reste la si tu as besoin. Dis 'Oppy' quand tu veux.",
+        "Pas de souci. Dis 'Oppy' pour me rappeler.",
+        "D'accord, je me mets en veille. Dis 'Oppy' quand tu as besoin de moi.",
+      ];
+      const farewell = farewells[Math.floor(Math.random() * farewells.length)];
       setMessages(prev => [...prev, { role: 'assistant', text: farewell }]);
       setPhase('SPEAKING');
       await speak(farewell);
