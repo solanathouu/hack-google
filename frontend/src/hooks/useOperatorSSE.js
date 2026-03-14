@@ -1,162 +1,118 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
-const TOTAL_STEPS = 13; // 9 tool_results + 3 initiatives + 1 brief
+const TOOL_LABELS = {
+  read_emails: 'Lecture emails',
+  get_events: 'Calendrier',
+  search_web: 'Signaux web',
+};
+
+const PROJECT_LABELS = {
+  school: 'Sorbonne',
+  company: 'BNP Paribas',
+  startup: 'NoctaAI',
+};
 
 export default function useOperatorSSE() {
-  const [toolCalls, setToolCalls] = useState([]);
   const [projectStatuses, setProjectStatuses] = useState({});
   const [briefText, setBriefText] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [chatMessages, setChatMessages] = useState([]);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [scanPhase, setScanPhase] = useState('');
+  const [feedLines, setFeedLines] = useState([]); // real-time feed
 
-  // Smooth progress: ceiling is raised by events, timer fills up to it
-  const ceilingRef = useRef(0);
-  const displayRef = useRef(0);
-  const timerRef = useRef(null);
-  const doneRef = useRef(false);
-
-  const stopTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => stopTimer, [stopTimer]);
-
-  const startTimer = useCallback(() => {
-    stopTimer();
-    timerRef.current = setInterval(() => {
-      const ceiling = ceilingRef.current;
-      const current = displayRef.current;
-
-      if (current >= 100) {
-        stopTimer();
-        return;
-      }
-
-      // Smoothly approach ceiling: move 15% of remaining gap, min +0.3
-      let next;
-      if (doneRef.current) {
-        // Brief received — rush to 100
-        next = Math.min(100, current + Math.max(2, (100 - current) * 0.15));
-      } else {
-        // Normal: approach ceiling but never exceed it
-        const gap = ceiling - current;
-        if (gap <= 0.5) return; // at ceiling, wait for next event
-        next = current + Math.max(0.3, gap * 0.12);
-        next = Math.min(next, ceiling);
-      }
-
-      displayRef.current = next;
-      setScanProgress(Math.round(next));
-
-      if (Math.round(next) >= 100) {
-        stopTimer();
-      }
-    }, 40); // ~25fps for smooth motion
-  }, [stopTimer]);
+  const addFeed = (text, color) => {
+    setFeedLines(prev => [...prev.slice(-8), { text, color, id: Date.now() + Math.random() }]);
+  };
 
   const startScan = useCallback(() => {
-    setToolCalls([]);
     setProjectStatuses({});
     setBriefText(null);
     setIsScanning(true);
-    setScanProgress(0);
-    setScanPhase('Connexion au serveur...');
-    ceilingRef.current = 5; // initial small bump
-    displayRef.current = 0;
-    doneRef.current = false;
-
-    let stepsDone = 0;
-    const raiseCeiling = (label) => {
-      stepsDone++;
-      // Leave 10% headroom for brief (steps go to 90%, brief fills to 100%)
-      const pct = Math.round((stepsDone / TOTAL_STEPS) * 90);
-      ceilingRef.current = Math.max(ceilingRef.current, pct);
-      setScanPhase(label);
-    };
-
-    startTimer();
+    setFeedLines([]);
 
     const source = new EventSource(`${BACKEND_URL}/api/run`);
 
     source.addEventListener('tool_call', (e) => {
       const data = JSON.parse(e.data);
-      setToolCalls(prev => [...prev, { tool: data.tool, project: data.project, status: 'running' }]);
-      setScanPhase(`${data.tool}(${data.project})...`);
-      // Small ceiling bump on tool_call to show activity
-      ceilingRef.current = Math.max(ceilingRef.current, ceilingRef.current + 2);
+      const tool = TOOL_LABELS[data.tool] || data.tool;
+      const proj = PROJECT_LABELS[data.project] || data.project;
+      addFeed(`${tool} — ${proj}...`, '#666');
     });
 
     source.addEventListener('tool_result', (e) => {
       const data = JSON.parse(e.data);
-      setToolCalls(prev =>
-        prev.map(tc =>
-          tc.tool === data.tool && tc.project === data.project && tc.status === 'running'
-            ? { ...tc, status: 'done' }
-            : tc
-        )
-      );
-      raiseCeiling(`${data.tool}(${data.project}) OK`);
+      const tool = TOOL_LABELS[data.tool] || data.tool;
+      const proj = PROJECT_LABELS[data.project] || data.project;
+      addFeed(`${tool} — ${proj} OK`, '#00FF88');
     });
 
-    source.addEventListener('urgency', () => {
-      setScanPhase('Analyse des urgences...');
+    source.addEventListener('urgency', (e) => {
+      const data = JSON.parse(e.data);
+      const proj = PROJECT_LABELS[data.project] || data.project;
+      const pct = Math.round(data.score * 100);
+      const color = pct > 60 ? '#FF4444' : pct > 30 ? '#FF8800' : '#00FF88';
+      addFeed(`Urgence ${proj}: ${data.email_subject} (${pct}%)`, color);
     });
 
     source.addEventListener('initiative', (e) => {
       const data = JSON.parse(e.data);
+      const proj = PROJECT_LABELS[data.project] || data.project;
       setProjectStatuses(prev => ({
         ...prev,
         [data.project]: { status: data.status, alerts: data.alerts },
       }));
-      raiseCeiling(`Evaluation ${data.project}`);
+      const color = data.status === 'URGENT' ? '#FF4444' : data.status === 'SIGNAL' ? '#FF8800' : '#00FF88';
+      addFeed(`${proj} → ${data.status}`, color);
     });
 
     source.addEventListener('brief', (e) => {
       const data = JSON.parse(e.data);
       setBriefText(data.text);
-      setScanPhase('Brief pret !');
-      doneRef.current = true;
-      ceilingRef.current = 100;
-      // isScanning will be cleared once display hits 100
-      const checkDone = setInterval(() => {
-        if (displayRef.current >= 99) {
-          setIsScanning(false);
-          setScanProgress(100);
-          clearInterval(checkDone);
-        }
-      }, 50);
+      setIsScanning(false);
+      addFeed('Brief pret !', '#00FF88');
       source.close();
     });
 
     source.onerror = () => {
       setIsScanning(false);
-      stopTimer();
-      setScanPhase('');
       source.close();
     };
-  }, [startTimer, stopTimer]);
-
-  const addChatMessage = useCallback((msg) => {
-    setChatMessages(prev => [...prev, msg]);
   }, []);
 
-  return {
-    toolCalls,
-    projectStatuses,
-    briefText,
-    isScanning,
-    startScan,
-    chatMessages,
-    addChatMessage,
-    scanProgress,
-    scanPhase,
-  };
+  const sendChat = useCallback(async (message) => {
+    const res = await fetch(`${BACKEND_URL}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let replyText = '';
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data:') || line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.replace(/^data:\s*/, ''));
+            if (data.type === 'chat_reply') {
+              replyText = data.text;
+            }
+          } catch { /* skip */ }
+        }
+      }
+    }
+
+    return replyText;
+  }, []);
+
+  return { projectStatuses, briefText, isScanning, startScan, sendChat, feedLines };
 }

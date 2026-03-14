@@ -123,16 +123,10 @@ def build_data_context(projects: list[dict]) -> str:
     return "\n".join(lines)
 
 
-async def chat_with_operator(message: str, projects: list[dict], on_event: Callable) -> str:
-    """Answer a user question with full project context.
+def create_chat_session(projects: list[dict]):
+    """Create a persistent Gemini chat session with full project context.
 
-    Args:
-        message: User's question/request.
-        projects: List of project dicts from config.
-        on_event: Async callback for streaming events.
-
-    Returns:
-        The assistant's text response.
+    Returns (client, chat) — caller must keep client alive.
     """
     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
@@ -140,16 +134,21 @@ async def chat_with_operator(message: str, projects: list[dict], on_event: Calla
     project_summary = build_operator_context(projects)
 
     chat_system = (
-        SYSTEM_PROMPT + "\n\n"
-        "Tu es maintenant en mode conversation directe. L'utilisateur te parle, il veut des reponses detaillees et utiles.\n\n"
-        "Regles du mode conversation :\n"
-        "- Quand il te dit de commencer par un projet ou un sujet, donne-lui un plan d'action detaille : quoi faire, dans quel ordre, combien de temps prevoir, et les pieges a eviter.\n"
-        "- Quand il te demande de lire ou resumer un mail, donne le contenu complet avec le contexte : qui a ecrit, pourquoi c'est important, ce qu'il doit faire en reponse.\n"
-        "- Quand il pose une question, reponds avec des details concrets tires des donnees. Pas de reponse vague.\n"
-        "- Tu es son assistant personnel, pas un chatbot. Tu connais ses projets, ses deadlines, ses contacts. Utilise ces infos.\n"
-        "- Garde ton ton de mentor direct et bienveillant. Tutoie-le.\n"
-        "- Si la question concerne un projet specifique, concentre-toi dessus en profondeur.\n"
-        "- Propose toujours une action concrete a la fin de ta reponse.\n\n"
+        "Tu es Operator, l'assistant personnel vocal d'un etudiant en alternance. "
+        "Tu es en mode CONVERSATION. L'utilisateur te parle et te pose des questions. "
+        "Tu REPONDS UNIQUEMENT a ce qu'il demande. Tu ne fais JAMAIS de brief complet sauf s'il le demande explicitement.\n\n"
+        "REGLE ABSOLUE : lis la question de l'utilisateur et reponds SEULEMENT a cette question. "
+        "Si il demande son programme du jour, donne JUSTE les events du jour. "
+        "Si il demande un mail precis, resume JUSTE ce mail. "
+        "Si il demande de l'aide sur un projet, parle JUSTE de ce projet. "
+        "Ne liste JAMAIS tous les projets sauf si on te le demande.\n\n"
+        "Style :\n"
+        "- Parle en francais naturel, tutoie, sois direct comme un pote.\n"
+        "- Reponds en 2-5 phrases max. Court et percutant.\n"
+        "- Nomme les gens par leur prenom (Sophie, pas sophie.renard@bnpparibas.com).\n"
+        "- Termine par une action concrete ou une question de suivi.\n"
+        "- Ne repete JAMAIS une reponse precedente.\n"
+        "- Pas de tirets, pas de listes a puces. Des phrases.\n\n"
         f"Projets actifs :\n{project_summary}\n\n"
         f"Donnees completes :\n{data_context}"
     )
@@ -160,8 +159,21 @@ async def chat_with_operator(message: str, projects: list[dict], on_event: Calla
             system_instruction=chat_system,
         ),
     )
+    return client, chat
 
-    response = chat.send_message(message)
+
+async def chat_with_operator(message: str, chat_session, on_event: Callable) -> str:
+    """Answer a user question using a persistent chat session.
+
+    Args:
+        message: User's question/request.
+        chat_session: Persistent Gemini chat session.
+        on_event: Async callback for streaming events.
+
+    Returns:
+        The assistant's text response.
+    """
+    response = chat_session.send_message(message)
     reply = response.text
 
     await on_event({

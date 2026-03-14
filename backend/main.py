@@ -10,7 +10,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
-from agent import chat_with_operator, run_operator
+from agent import chat_with_operator, create_chat_session, run_operator
 from mock_data import MOCK_EMAILS, MOCK_EVENTS, MOCK_SEARCH
 from tts import generate_speech
 from urgency import load_model
@@ -23,10 +23,22 @@ if not api_key or api_key == "your_key_here":
     raise RuntimeError("GOOGLE_API_KEY not set. Check backend/.env")
 
 
+# Persistent chat session (created on first /api/chat call)
+_chat_client = None
+_chat_session = None
+
+
+def get_chat_session():
+    global _chat_client, _chat_session
+    if _chat_session is None:
+        config = load_config()
+        _chat_client, _chat_session = create_chat_session(config["projects"])
+    return _chat_session
+
+
 @asynccontextmanager
 async def lifespan(app):
     load_model()
-    print("HuggingFace model loaded.")
     yield
 
 
@@ -91,7 +103,7 @@ async def tts(req: TTSRequest):
 
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
-    config = load_config()
+    session = get_chat_session()
     queue = asyncio.Queue()
 
     async def on_event(event: dict):
@@ -99,7 +111,7 @@ async def chat(req: ChatRequest):
 
     async def generator():
         task = asyncio.create_task(
-            chat_with_operator(req.message, config["projects"], on_event)
+            chat_with_operator(req.message, session, on_event)
         )
 
         while True:

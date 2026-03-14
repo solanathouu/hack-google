@@ -38,6 +38,50 @@ body {
   to { opacity: 1; }
 }
 
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Jarvis Orb animations */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+@keyframes activateBurst {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.3); }
+  100% { transform: scale(1.05); }
+}
+
+@keyframes listenPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@keyframes ripple {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+@keyframes thinkSpin {
+  0% { filter: hue-rotate(0deg); transform: scale(1); }
+  50% { filter: hue-rotate(40deg); transform: scale(1.04); }
+  100% { filter: hue-rotate(0deg); transform: scale(1); }
+}
+
+@keyframes orbSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes speakPulse {
+  0%, 100% { transform: scaleY(1) scaleX(1); }
+  30% { transform: scaleY(1.08) scaleX(0.97); }
+  70% { transform: scaleY(0.95) scaleX(1.04); }
+}
+
 ::-webkit-scrollbar {
   width: 6px;
 }
