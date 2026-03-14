@@ -4,9 +4,12 @@ import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -145,3 +148,17 @@ async def project_sources(project_id: str):
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+# --- Serve frontend static files (for Replit / production) ---
+_static_dir = Path(__file__).parent / "static"
+if _static_dir.exists():
+    app.mount("/assets", StaticFiles(directory=_static_dir / "assets"), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """Serve the React SPA for any non-API route."""
+        file_path = _static_dir / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(_static_dir / "index.html")

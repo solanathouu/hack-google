@@ -36,11 +36,10 @@ export default function App() {
   });
 
   const handleOrbClick = useCallback(() => {
-    if (phase === 'IDLE') {
-      if (micError || !micActive) requestMic();
-      else setPhase('LISTENING');
+    if (phaseRef.current === 'IDLE') {
+      setPhase('LISTENING');
     }
-  }, [phase, micError, micActive, requestMic]);
+  }, []);
 
   const handleUserSaid = useCallback(async (text) => {
     if (!text.trim()) return;

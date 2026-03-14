@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-// Broad matching — French STT transcribes "Oppy" in many ways
+// Very broad matching — French STT transcribes "Oppy" in many unexpected ways
 function matchesWakeWord(transcript) {
-  const t = transcript.toLowerCase().replace(/[.,!?']/g, '').trim();
-  return /oppy|opi|op[iy]e?|o[pb]+[iy]|hey op|ok op/.test(t);
+  const t = transcript.toLowerCase().replace(/[.,!?'"\-]/g, ' ').trim();
+  return /opp?[iey]|au?pp?[iey]|oh? p[iey]|au pi|o[bp]+ ?[iey]|hop[iey]|op[iey]|hey op|ok op|aux? pi/.test(t);
 }
 
 export default function useWakeWord({ enabled, onDetected }) {
@@ -44,8 +44,11 @@ export default function useWakeWord({ enabled, onDetected }) {
     recognition.onend = () => {
       isRunningRef.current = false;
       setMicActive(false);
-      if (enabledRef.current) {
-        setTimeout(() => startListening(), 300);
+      // Only restart if still enabled AND this recognition instance is still current
+      if (enabledRef.current && recognitionRef.current === recognition) {
+        setTimeout(() => {
+          if (enabledRef.current) startListening();
+        }, 300);
       }
     };
 
@@ -84,15 +87,19 @@ export default function useWakeWord({ enabled, onDetected }) {
       // Try auto-start (works if mic was already granted)
       startListening();
     } else {
-      if (recognitionRef.current && isRunningRef.current) {
-        recognitionRef.current.stop();
+      if (recognitionRef.current) {
+        try { recognitionRef.current.abort(); } catch {}
+        try { recognitionRef.current.stop(); } catch {}
+        recognitionRef.current = null;
         isRunningRef.current = false;
       }
       setMicActive(false);
     }
     return () => {
       if (recognitionRef.current) {
+        try { recognitionRef.current.abort(); } catch {}
         try { recognitionRef.current.stop(); } catch {}
+        recognitionRef.current = null;
         isRunningRef.current = false;
       }
     };

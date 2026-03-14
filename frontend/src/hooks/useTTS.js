@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
 export default function useTTS() {
   const [isSpeaking, setIsSpeaking] = useState(false);

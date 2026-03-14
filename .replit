@@ -1,0 +1,10 @@
+run = "bash start.sh"
+
+[nix]
+channel = "stable-24_05"
+
+[env]
+PYTHONPATH = "backend"
+
+[deployment]
+run = "bash start.sh"

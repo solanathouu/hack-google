@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
 const STATUS_CONFIG = {
   STANDBY: { label: 'STANDBY', bg: '#f1f3f4', color: '#5f6368' },

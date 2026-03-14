@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
 export default function useOperatorSSE() {
   const sendChat = useCallback(async (message) => {
