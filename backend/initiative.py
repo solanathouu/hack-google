@@ -24,7 +24,10 @@ def evaluate_project(project: dict, emails: list[dict], events: list[dict], sear
             status = "URGENT"
 
     # Rule 2: Deadline < 48h without prep block
-    deadline = datetime.fromisoformat(project["deadline"])
+    deadline_str = project.get("deadline")
+    if not deadline_str:
+        return {"status": status, "alerts": alerts}
+    deadline = datetime.fromisoformat(deadline_str)
     now = datetime.now()
     hours_to_deadline = (deadline - now).total_seconds() / 3600
     has_prep = any(e.get("prep_block", False) for e in events)
