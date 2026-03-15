@@ -3,8 +3,8 @@
   "projects": [
     {
       "id": "school",
-      "name": "Master IA \u2014 Sorbonne",
-      "contact": "prof.martinez@sorbonne.fr",
+      "name": "Master IA \u2014 Eugenia",
+      "contact": "prof.martinez@eugenia.school",
       "deadline": "2026-03-18T23:59:00",
       "color": "#00FF88",
       "keywords": ["cours", "rendu", "memoire", "soutenance", "TP"]

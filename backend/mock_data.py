@@ -1,29 +1,29 @@
 MOCK_EMAILS = {
     "school": [
         {
-            "from": "prof.martinez@sorbonne.fr",
+            "from": "prof.martinez@eugenia.school",
             "subject": "Rendu TP Deep Learning",
             "body": "Le rendu du TP sur les transformers est pour mercredi 18 mars 23h59. Format notebook + rapport PDF. Pas d'extension possible.",
             "date": "2026-03-12",
             "days_since_reply": 0,
         },
         {
-            "from": "admin-master@sorbonne.fr",
+            "from": "admin-master@eugenia.school",
             "subject": "Soutenance memoire - date fixee",
             "body": "Votre soutenance est fixee au 15 avril. Merci de confirmer votre sujet avant le 25 mars.",
             "date": "2026-03-13",
             "days_since_reply": 1,
         },
         {
-            "from": "prof.dubois@sorbonne.fr",
+            "from": "prof.dubois@eugenia.school",
             "subject": "Projet NLP - constitution des groupes",
             "body": "Les groupes pour le projet NLP doivent etre constitues avant vendredi. 3 personnes max. Envoyez-moi vos groupes par mail.",
             "date": "2026-03-14",
             "days_since_reply": 0,
         },
         {
-            "from": "bde-ia@sorbonne.fr",
-            "subject": "Hackathon IA Sorbonne - 22 mars",
+            "from": "bde-ia@eugenia.school",
+            "subject": "Hackathon IA Eugenia - 22 mars",
             "body": "Le hackathon annuel du Master IA aura lieu le 22 mars. Inscriptions ouvertes, equipes de 4. Theme : IA generative appliquee a la sante.",
             "date": "2026-03-14",
             "days_since_reply": None,
@@ -97,7 +97,7 @@ MOCK_EVENTS = {
         {"title": "Cours NLP avance", "time": "2026-03-15T09:00", "prep_block": True},
         {"title": "TD Maths pour le ML", "time": "2026-03-14T14:00", "prep_block": False},
         {"title": "Reunion groupe projet NLP", "time": "2026-03-16T11:00", "prep_block": False},
-        {"title": "Hackathon IA Sorbonne", "time": "2026-03-22T09:00", "prep_block": False},
+        {"title": "Hackathon IA Eugenia", "time": "2026-03-22T09:00", "prep_block": False},
     ],
     "company": [
         {"title": "Sprint Review", "time": "2026-03-17T10:00", "prep_block": False},
@@ -114,7 +114,7 @@ MOCK_EVENTS = {
 }
 
 MOCK_SEARCH = {
-    "school": "Sorbonne Universite - les inscriptions au Master IA 2026 battent des records, +40% de candidatures.",
+    "school": "Eugenia Universite - les inscriptions au Master IA 2026 battent des records, +40% de candidatures.",
     "company": "BNP Paribas lance un nouveau programme d'acceleration data & IA pour ses alternants.",
     "startup": "Y Combinator ouvre les candidatures Winter 2026. Deadline 10 avril. Focus AI-native startups.",
 }

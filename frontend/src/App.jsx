@@ -8,14 +8,14 @@ import useSpeechRecognition from './hooks/useSpeechRecognition';
 import useTTS from './hooks/useTTS';
 
 const PROJECTS = [
-  { id: 'school', name: 'Master IA \u2014 Sorbonne', contact: 'prof.martinez@sorbonne.fr', color: '#4285f4' },
+  { id: 'school', name: 'Master IA \u2014 Eugenia', contact: 'prof.martinez@eugenia.school', color: '#4285f4' },
   { id: 'company', name: 'Alternance \u2014 BNP Paribas', contact: 'sophie.renard@bnpparibas.com', color: '#ea4335' },
   { id: 'startup', name: 'Side Project \u2014 NoctaAI', contact: 'yassine@noctaai.com', color: '#fbbc04' },
 ];
 
 export default function App() {
   const { sendChat } = useOperatorSSE();
-  const { speak } = useTTS();
+  const { speak, speakChunked } = useTTS();
 
   // Start directly in IDLE — no scan needed
   const [phase, setPhase] = useState('IDLE');
@@ -94,7 +94,7 @@ export default function App() {
       if (reply) {
         setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
         setPhase('SPEAKING');
-        await speak(reply);
+        await speakChunked(reply);
         if (phaseRef.current === 'SPEAKING') setPhase('LISTENING');
       } else {
         setPhase('LISTENING');
@@ -103,7 +103,7 @@ export default function App() {
       console.error('Chat error:', err);
       setPhase('LISTENING');
     }
-  }, [sendChat, speak]);
+  }, [sendChat, speak, speakChunked]);
 
   const handleTimeout = useCallback(() => {
     if (phaseRef.current === 'LISTENING') setPhase('IDLE');
